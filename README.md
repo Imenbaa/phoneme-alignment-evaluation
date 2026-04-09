@@ -1,5 +1,3 @@
-# phoneme-alignment-evaluation
-
 # Phoneme Alignment Evaluation
 
 This repository provides tools to evaluate phoneme alignment systems using:
