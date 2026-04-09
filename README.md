@@ -1,7 +1,7 @@
 # Phoneme Alignment Evaluation Toolkit
 
 A Python toolkit for evaluating phoneme alignment systems.
-Based on a rewrite of the [ESTER `trackeval` Perl script](http://www.afcp-parole.org/ester/) (Gravier & Galliano, 2008), extended with boundary-based F1 metrics suited to forced alignment evaluation.
+Based on a rewrite of the ESTER `trackeval` Perl script (Gravier & Galliano, 2008), extended with boundary-based F1 metrics suited to forced alignment evaluation.
 
 ---
 
