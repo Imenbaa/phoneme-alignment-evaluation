@@ -56,6 +56,14 @@ Rhap-D0020.wav 1 0.608020 0.030000 sc - a - t
 
 These ETF files are built in such a way that for a phoneme /a/, we check its presence (t) or absence (f) in each segment in all files. 
 
+The script create_etf_from_pkl.py contains a function "pkl_to_etf" that takes as input a dictionary of files and their corresponding ref and hyp phonemes sequences and intervals (example:**alignment_rhap.pkl**) and creates an etf file.
+
+you can use it as follows:
+
+```
+pkl_to_etf("alignment_rhap.pkl", "hyp.etf", use_hyp=True)
+pkl_to_etf("alignment_rhap.pkl", "ref.etf", use_hyp=False)
+```
 ---
 
 ## Metrics
