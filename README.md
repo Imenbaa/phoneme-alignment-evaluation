@@ -1,13 +1,13 @@
 # Phoneme Alignment Evaluation Toolkit
 
-A Python toolkit for evaluating phoneme alignment systems on French speech corpora.
+A Python toolkit for evaluating phoneme alignment systems.
 Based on a rewrite of the [ESTER `trackeval` Perl script](http://www.afcp-parole.org/ester/) (Gravier & Galliano, 2008), extended with boundary-based F1 metrics suited to forced alignment evaluation.
 
 ---
 
 ## Overview
 
-Forced alignment systems produce a sequence of phoneme segments with associated timestamps. Evaluating these systems requires metrics that jointly assess:
+Alignment systems produce a sequence of phoneme segments with associated timestamps. Evaluating these systems requires metrics that jointly assess:
 
 - **Recognition quality** — are the right phonemes predicted?
 - **Alignment quality** — are the boundaries placed at the right time?
@@ -15,9 +15,9 @@ Forced alignment systems produce a sequence of phoneme segments with associated 
 This toolkit provides two complementary evaluation modes:
 
 | Mode | What it measures | Key metric |
-|---|---|---|
+|------|------------------|------------|
 | Overlap-based | Duration of correctly detected phoneme per event | F1 (recall/precision on duration) |
-| Boundary-based | Precision of boundary placement | F1@20ms, F1@50ms |
+| Boundary-based | Precision of boundary placement | F1@20ms |
 
 Both modes operate at the **phoneme level** (each phoneme = one event) across **all audio files** in the corpus simultaneously.
 
@@ -43,16 +43,18 @@ All input files follow the **ETF (Event Tracking File)** format, one segment per
 | `score` | Confidence score from the system; use `-` if unavailable |
 | `decision` | `true` if the event is present, `false` otherwise |
 
-**Example reference file:**
+**Example ETF reference file or hyp file:**
 ```
-rhap_001  1  0.000  0.085  ph  planned  sil   -  true
-rhap_001  1  0.085  0.072  ph  planned  p     -  true
-rhap_001  1  0.157  0.110  ph  planned  a     -  true
-rhap_001  1  0.267  0.063  ph  planned  r     -  true
-rhap_001  1  0.330  0.090  ph  planned  l     -  false
+Rhap-D0020.wav 1 0.000000 0.180000 sc - a - f
+Rhap-D0020.wav 1 0.180000 0.040000 sc - a - f
+Rhap-D0020.wav 1 0.220000 0.288020 sc - a - f
+Rhap-D0020.wav 1 0.508020 0.030000 sc - a - f
+Rhap-D0020.wav 1 0.538020 0.070000 sc - a - f
+Rhap-D0020.wav 1 0.608020 0.030000 sc - a - t
+
 ```
 
-> **Important:** The reference file **must** include segments where the target phoneme is absent (`decision=false`). Without these, false alarm rate cannot be computed.
+These ETF files are built in such a way that for a phoneme /a/, we check its presence (t) or absence (f) in each segment in all files. 
 
 ---
 
@@ -74,7 +76,7 @@ F1        = 2 · recall · precision / (recall + precision)
 
 This metric penalizes both **recognition errors** (wrong phoneme label) and **alignment errors** (correct label but shifted boundary), since both reduce the overlap duration.
 
-### Boundary-based F1 (extension)
+### Boundary-based F1 (added by me)
 
 For each phoneme, segment **start boundaries** are extracted from ref and hyp. A hypothesis boundary is a **True Positive** if and only if it falls within ±δ of a reference boundary:
 
@@ -101,13 +103,12 @@ Three tolerances are reported: **F1@0ms**, **F1@20ms**, **F1@50ms**.
 ### Summary of differences
 
 | Property | Overlap F1 | Boundary F1@20ms |
-|---|---|---|
+|----------|------------|------------------|
 | Unit | duration (seconds) | boundary position |
 | Penalizes wrong label | yes | no |
 | Penalizes shifted boundary | partially | yes, directly |
 | Penalizes missing phoneme | yes | yes (2 boundaries lost) |
 | Sensitive to uniform shift | yes | no (if within tolerance) |
-| Standard use case | diarization | forced alignment |
 
 ---
 
@@ -120,13 +121,8 @@ All metrics are aggregated at **corpus level** by summing raw counts (TP, FP, FN
 ## Installation
 
 ```bash
-git clone https://github.com/your-username/phoneme-alignment-eval
-cd phoneme-alignment-eval
-pip install matplotlib scipy
+git clone https://github.com/Imenbaa/phoneme-alignment-evaluation
 ```
-
-No other dependencies beyond the Python standard library.
-
 ---
 
 ## Usage
@@ -141,23 +137,23 @@ python trackeval.py --margin=0 --error=event ref.etf hyp.etf
 python trackeval.py --margin=0 --segmentation=event ref.etf hyp.etf
 
 # Both + boundary F1
-python trackeval.py --margin=0 --error=event --segmentation=event \
+python trackeval.py --margin=0 --boundary_delta=0.02 --error=event --segmentation=event \
                     --boundary-f1 ref.etf hyp.etf
 
 # Output to file
 python trackeval.py --margin=0 --error=event -o results.txt ref.etf hyp.etf
 
 # With speaking style subtypes
-python trackeval.py --margin=0 --subtype --segmentation=event+subtype ref.etf hyp.etf
+python trackeval.py --margin=0 --subtype --segmentation=event+subtype --error event+subtype ref.etf hyp.etf
 ```
 
 ### Python API
 
 ```python
-from trackeval import run_trackeval, plot_operating_points
+from trackeval import run_trackeval
 
 # Run evaluation
-results, det = run_trackeval(
+results = run_trackeval(
     reffn          = "ref.etf",
     hypfn          = "hyp.etf",
     margin         = 0.0,        # no erosion
@@ -181,13 +177,6 @@ for ph, m in results['by_event'].items():
 for src, m in results['by_source'].items():
     print(f"{src}  recall={m['recall']:.3f}")
 
-# Compare multiple systems
-systems = {
-    "CTC":     run_trackeval("ref.etf", "hyp_ctc.etf",     margin=0.0, bnd_f1=True, boundary_delta=0.020),
-    "MFA_w2v": run_trackeval("ref.etf", "hyp_mfa_w2v.etf", margin=0.0, bnd_f1=True, boundary_delta=0.020),
-    "MFA_asr": run_trackeval("ref.etf", "hyp_mfa_asr.etf", margin=0.0, bnd_f1=True, boundary_delta=0.020),
-}
-plot_operating_points({name: res for name, (res, _) in systems.items()})
 ```
 
 ---
@@ -197,6 +186,7 @@ plot_operating_points({name: res for name, (res, _) in systems.items()})
 | Option | Default | Description |
 |---|---|---|
 | `-m`, `--margin` | `0.25` | Margin applied to ref segment boundaries before scoring. Use `0` for phoneme alignment. |
+| `-D`, `--delta_boundary` | `0.02` | Tolerance of boundaries for phoneme alignment |
 | `-r`, `--error[=spec]` | — | Report detection errors. `spec` can be `sum`, `event`, `source`, or combinations with `+`. |
 | `-b`, `--segmentation[=spec]` | — | Report segmentation statistics (boundary recall/precision). |
 | `--boundary-f1` | off | Compute boundary-based F1 with tolerance = `--margin`. |
@@ -232,25 +222,4 @@ The following extensions were added for phoneme alignment evaluation:
 - `etfbcmp_f1()` — boundary F1 with TP/FP/FN decomposition (vs. the original `etfbcmp()` which only returns a match count)
 - `run_trackeval()` — programmatic API returning structured Python dicts
 - `boundary_delta` — decouples boundary tolerance from segment erosion
-- `plot_operating_points()` — visualizes system comparison when confidence scores are unavailable
 
----
-
-## Citation
-
-If you use this toolkit, please cite the original ESTER evaluation framework:
-
-```bibtex
-@inproceedings{galliano2009ester,
-  title     = {The ESTER 2 evaluation campaign for the rich transcription of French radio broadcasts},
-  author    = {Galliano, Sylvain and Gravier, Guillaume and Chaubard, Laura},
-  booktitle = {Interspeech},
-  year      = {2009}
-}
-```
-
----
-
-## License
-
-MIT
